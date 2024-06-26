@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 from database import init_db, get_students, mark_attendance
 
 # Inicialización de la base de datos
@@ -15,7 +16,7 @@ def run_recognition():
 
     video_capture = None
     for backend in backends:
-        video_capture = cv2.VideoCapture(1, backend)
+        video_capture = cv2.VideoCapture(0, backend)
         if video_capture.isOpened():
             print(f"Using backend: {backend}")
             break
@@ -23,6 +24,10 @@ def run_recognition():
     if not video_capture or not video_capture.isOpened():
         print("No se puede acceder a la cámara con ninguno de los backends disponibles.")
         return
+
+    # Diccionario para rastrear la última marca de asistencia por estudiante
+    last_marked = {}
+    printed_messages = set()  # Set para rastrear impresiones ya realizadas
 
     # Captura y procesamiento de imágenes en tiempo real
     while True:
@@ -36,31 +41,39 @@ def run_recognition():
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE)
 
         if len(faces) == 0:
-            print("No se detectaron rostros.")
-        else:
-            print(f"Rostros detectados: {len(faces)}")
+            continue
 
+        students = get_students()
+        current_time = time.time()
         for (x, y, w, h) in faces:
-            face = gray[y:y+h, x:x+w]
+            # Asegurarse de que los índices no excedan los límites de la imagen
+            y_end = min(y + h, gray.shape[0])
+            x_end = min(x + w, gray.shape[1])
+            face = gray[y:y_end, x:x_end]
+            
             label, confidence = face_recognizer.predict(face)
-            print(f"Rostro detectado con etiqueta {label} y confianza {confidence}")
 
-            if confidence > 50:  # Umbral de coincidencia
-                student_id = label
-                students = get_students()
-                for student in students:
-                    if student[0] == student_id:
+            # Verificar la confianza antes de proceder
+            if confidence > 60:
+                continue
+
+            student_name = "Desconocido"
+            for student in students:
+                if student[0] == label:
+                    student_name = student[1]
+                    last_marked_time = last_marked.get(label, 0)
+                    # Marcar asistencia si ha pasado más de 1 minuto (60 segundos)
+                    if current_time - last_marked_time > 60:
                         mark_attendance(student[0])
-                        cv2.putText(frame, student[1], (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                        print(f"Estudiante {student[1]} reconocido y asistencia marcada.")
-                        break
-            else:
-                print("Rostro no reconocido o confianza insuficiente.")
+                        last_marked[label] = current_time
+                        print(f"Asistencia marcada para {student_name} a las {time.ctime(current_time)}")
+                        printed_messages.add(label)
+                    break
+            
+            # Mostrar el nombre del estudiante en el frame
+            cv2.putText(frame, student_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
 
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
-
-        cv2.imshow('Video', frame)
-
+        cv2.imshow('Reconocimiento Facial', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

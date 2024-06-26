@@ -15,7 +15,7 @@ def capture_face():
     cap = None
 
     for backend in backends:
-        cap = cv2.VideoCapture(1, backend)
+        cap = cv2.VideoCapture(0, backend)
         if cap.isOpened():
             print(f"Using backend: {backend}")
             break
