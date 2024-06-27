@@ -54,7 +54,7 @@ def run_recognition():
             label, confidence = face_recognizer.predict(face)
 
             # Verificar la confianza antes de proceder
-            if confidence > 60:
+            if confidence > 50:
                 continue
 
             student_name = "Desconocido"
