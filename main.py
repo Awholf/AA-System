@@ -1,8 +1,7 @@
 import cv2
 import numpy as np
 import time
-from database import init_db, get_students, mark_attendance
-
+from database import init_db, get_students, mark_attendance, view_students, view_attendance, generate_excel
 # Inicialización de la base de datos
 init_db()
 
@@ -80,5 +79,12 @@ def run_recognition():
     video_capture.release()
     cv2.destroyAllWindows()
 
+
 if __name__ == "__main__":
+    # Llamar a las funciones de visualización de datos
+    view_students()
+    view_attendance()
+
+    # Iniciar el reconocimiento facial
     run_recognition()
+    generate_excel()
